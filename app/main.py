@@ -1,0 +1,174 @@
+"""
+Google Trends Taiwan Daily Trending Topics Fetcher
+Fetches trending topics from Google Trends and sends to Slack
+"""
+
+import os
+import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from flask import Flask, jsonify
+import requests
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+
+
+def get_taiwan_trending_topics():
+    """Fetch trending topics from Google Trends RSS feed for Taiwan."""
+    import xml.etree.ElementTree as ET
+    
+    # Google Trends RSS feed for Taiwan
+    # This is a free, official RSS feed from Google
+    rss_url = "https://trends.google.com/trending/rss?geo=TW"
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/rss+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+    }
+    
+    try:
+        response = requests.get(rss_url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        # Parse the RSS XML
+        root = ET.fromstring(response.content)
+        
+        # Find all item titles in the RSS feed
+        # RSS structure: rss > channel > item > title
+        topics = []
+        
+        # Handle different possible namespaces
+        for item in root.findall('.//item'):
+            title_elem = item.find('title')
+            if title_elem is not None and title_elem.text:
+                topics.append(title_elem.text.strip())
+        
+        if topics:
+            logger.info(f"Found {len(topics)} trending topics via RSS feed")
+            return topics[:20]
+        else:
+            logger.warning("No topics found in RSS feed")
+            return []
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"RSS feed request failed: {e}")
+        raise Exception(f"Failed to fetch RSS feed: {e}")
+    except ET.ParseError as e:
+        logger.error(f"Failed to parse RSS XML: {e}")
+        raise Exception(f"Failed to parse RSS feed: {e}")
+
+
+def send_to_slack(topics):
+    """Send trending topics to Slack channel via webhook."""
+    webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
+    
+    if not webhook_url:
+        raise ValueError("SLACK_WEBHOOK_URL environment variable is not set")
+    
+    # Get current time in Taiwan timezone
+    taiwan_tz = ZoneInfo('Asia/Taipei')
+    current_time = datetime.now(taiwan_tz).strftime('%Y-%m-%d %H:%M')
+    
+    # Format the message
+    if topics:
+        topics_text = "\n".join([f"• {topic}" for topic in topics[:20]])  # Limit to top 20
+        message = {
+            "blocks": [
+                {
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "🔥 台灣 Google Trends 熱門關鍵字",
+                        "emoji": True
+                    }
+                },
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "plain_text",
+                            "text": f"📅 {current_time} (近 24 小時)",
+                            "emoji": True
+                        }
+                    ]
+                },
+                {
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": topics_text
+                    }
+                }
+            ]
+        }
+    else:
+        message = {
+            "text": f"📅 {current_time}\n目前沒有找到熱門關鍵字"
+        }
+    
+    response = requests.post(
+        webhook_url,
+        json=message,
+        headers={'Content-Type': 'application/json'},
+        timeout=30
+    )
+    
+    if response.status_code != 200:
+        raise ValueError(f"Slack API error: {response.status_code} - {response.text}")
+    
+    logger.info("Successfully sent message to Slack")
+    return True
+
+
+def fetch_trends():
+    """Main function to fetch trends and send to Slack."""
+    topics = get_taiwan_trending_topics()
+    send_to_slack(topics)
+    return topics
+
+
+@app.route('/fetch-trends', methods=['POST', 'GET'])
+def fetch_trends_endpoint():
+    """HTTP endpoint for Cloud Scheduler to trigger."""
+    try:
+        topics = fetch_trends()
+        return jsonify({
+            "status": "success",
+            "topics_count": len(topics),
+            "topics": topics[:10]  # Return first 10 in response
+        }), 200
+    except Exception as e:
+        logger.error(f"Error in fetch_trends_endpoint: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint."""
+    return jsonify({"status": "healthy"}), 200
+
+
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint."""
+    return jsonify({
+        "service": "Google Trends Taiwan Fetcher",
+        "endpoints": ["/fetch-trends", "/health"]
+    }), 200
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)

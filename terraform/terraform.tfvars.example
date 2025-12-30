@@ -1,0 +1,8 @@
+# Example terraform.tfvars - copy to terraform.tfvars and fill in values
+# DO NOT commit terraform.tfvars to version control
+
+project_id = "your-gcp-project-id"
+region     = "asia-east1"
+
+# Note: Slack Webhook URL is stored in Secret Manager
+# Add the secret value manually via GCP Console after running terraform apply
