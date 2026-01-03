@@ -49,3 +49,6 @@ Thumbs.db
 # Local env files
 .env
 .env.local
+
+# ignore local data
+trendFakeData.xml

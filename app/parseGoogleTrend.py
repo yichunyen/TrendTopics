@@ -12,14 +12,32 @@ def parse_google_trends(xml_data):
         A list of strings, where each string is a trend title.
     """
     try:
+        ns = {
+            'ht': 'https://trends.google.com/trending/rss'
+        }
+
         root = ET.fromstring(xml_data)
-        titles = []
-        # Find all 'item' elements in the XML and get the 'title' from each.
-        for item in root.findall('.//item'):
-            title = item.find('title')
-            if title is not None and title.text:
-                titles.append(title.text.strip())
-        return titles
+    
+        trends_list = []
+        items = root.findall('.//item')
+        for item in items:
+            entry = {
+                'title': item.findtext('title'),
+                'traffic': item.findtext('ht:approx_traffic', namespaces=ns),
+                'news': []
+            }
+
+            news_elements = item.findall('ht:news_item', ns)
+            for news in news_elements:
+                news_detail = {
+                    'n_title': news.findtext('ht:news_item_title', namespaces=ns),
+                    'n_source': news.findtext('ht:news_item_source', namespaces=ns),
+                    'n_url': news.findtext('ht:news_item_url', namespaces=ns),
+                }
+                entry['news'].append(news_detail)
+
+            trends_list.append(entry)
+        return trends_list
     except ET.ParseError as e:
         # Raise a ValueError to be handled by the caller, e.g., the Flask app.
         raise ValueError(f"Failed to parse XML data: {e}") from e
@@ -42,12 +60,17 @@ def main():
             xml_content = f.read()
 
         print(f"--- Analyzing local file: {xml_file_path} ---")
-        titles = parse_google_trends(xml_content)
+        results = parse_google_trends(xml_content)
 
-        if titles:
-            print("Extracted Titles:")
-            for i, title in enumerate(titles, 1):
-                print(f"{i}. {title}")
+        if results:
+            for index, trend in enumerate(results, 1):
+                if trend['news']:
+                    print(f"# {index} {trend['title']} {trend['traffic']}")
+                    for n_idx, news in enumerate(trend['news'], 1):
+                        print(f"  [{n_idx}] {news['n_title']}")
+                        print(f"      {news['n_url']}")
+                else:
+                    print(f"# {index} {trend['title']} {trend['traffic']} N/A")
         else:
             print("No titles found. The XML may be empty or have an unexpected structure.")
         print("-------------------------------------------------")
