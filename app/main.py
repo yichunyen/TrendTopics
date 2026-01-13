@@ -54,7 +54,7 @@ def get_taiwan_trending_topics():
         raise Exception(f"Failed to parse RSS feed: {e}")
 
 
-def send_to_slack(topics):
+def send_to_slack(topics: list):
     """Send trending topics to Slack channel via webhook."""
     webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
     
@@ -64,10 +64,23 @@ def send_to_slack(topics):
     # Get current time in Taiwan timezone
     taiwan_tz = ZoneInfo('Asia/Taipei')
     current_time = datetime.now(taiwan_tz).strftime('%Y-%m-%d %H:%M')
+    sections = ''
     
+    if topics:
+        for index, trend in enumerate(topics, 1):
+            if trend['news'] and len(trend['news']) > 0:
+                sections += f"# {index} {trend['title']} ({trend['traffic']})\n"
+                for n_idx, news in enumerate(trend['news'], 1):
+                    sections += f"- {news['n_title']} {news['n_url']}\n\n"
+            else:
+                sections += f"# {index} {trend['title']} ({trend['traffic']}) - N/A\n\n"
+    else:
+        sections += "目前沒有找到熱門關鍵字\n"
+    
+    # logger.info(f"Preparing to send {len(topics)} topics to Slack")
+
     # Format the message
     if topics:
-        topics_text = "\n".join([f"• {topic}" for topic in topics[:20]])  # Limit to top 20
         message = {
             "blocks": [
                 {
@@ -92,11 +105,13 @@ def send_to_slack(topics):
                     "type": "divider"
                 },
                 {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": topics_text
-                    }
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": sections
+                        }
+                    ]
                 }
             ]
         }
