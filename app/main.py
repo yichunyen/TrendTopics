@@ -11,6 +11,9 @@ from zoneinfo import ZoneInfo
 from flask import Flask, jsonify
 import requests
 
+# Import the shared parser function
+from parseGoogleTrend import parse_google_trends
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,10 +23,7 @@ app = Flask(__name__)
 
 def get_taiwan_trending_topics():
     """Fetch trending topics from Google Trends RSS feed for Taiwan."""
-    import xml.etree.ElementTree as ET
-    
     # Google Trends RSS feed for Taiwan
-    # This is a free, official RSS feed from Google
     rss_url = "https://trends.google.com/trending/rss?geo=TW"
     
     headers = {
@@ -36,18 +36,8 @@ def get_taiwan_trending_topics():
         response = requests.get(rss_url, headers=headers, timeout=30)
         response.raise_for_status()
         
-        # Parse the RSS XML
-        root = ET.fromstring(response.content)
-        
-        # Find all item titles in the RSS feed
-        # RSS structure: rss > channel > item > title
-        topics = []
-        
-        # Handle different possible namespaces
-        for item in root.findall('.//item'):
-            title_elem = item.find('title')
-            if title_elem is not None and title_elem.text:
-                topics.append(title_elem.text.strip())
+        # Use the imported parser to extract topics from the RSS feed content
+        topics = parse_google_trends(response.content)
         
         if topics:
             logger.info(f"Found {len(topics)} trending topics via RSS feed")
@@ -59,12 +49,12 @@ def get_taiwan_trending_topics():
     except requests.exceptions.RequestException as e:
         logger.error(f"RSS feed request failed: {e}")
         raise Exception(f"Failed to fetch RSS feed: {e}")
-    except ET.ParseError as e:
+    except ValueError as e: # Catch parsing errors from our function
         logger.error(f"Failed to parse RSS XML: {e}")
         raise Exception(f"Failed to parse RSS feed: {e}")
 
 
-def send_to_slack(topics):
+def send_to_slack(topics: list):
     """Send trending topics to Slack channel via webhook."""
     webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
     
@@ -74,10 +64,23 @@ def send_to_slack(topics):
     # Get current time in Taiwan timezone
     taiwan_tz = ZoneInfo('Asia/Taipei')
     current_time = datetime.now(taiwan_tz).strftime('%Y-%m-%d %H:%M')
+    sections = ''
     
+    if topics:
+        for index, trend in enumerate(topics, 1):
+            if trend['news'] and len(trend['news']) > 0:
+                sections += f"# {index} {trend['title']} ({trend['traffic']})\n"
+                for n_idx, news in enumerate(trend['news'], 1):
+                    sections += f"- {news['n_title']} {news['n_url']}\n\n"
+            else:
+                sections += f"# {index} {trend['title']} ({trend['traffic']}) - N/A\n\n"
+    else:
+        sections += "目前沒有找到熱門關鍵字\n"
+    
+    # logger.info(f"Preparing to send {len(topics)} topics to Slack")
+
     # Format the message
     if topics:
-        topics_text = "\n".join([f"• {topic}" for topic in topics[:20]])  # Limit to top 20
         message = {
             "blocks": [
                 {
@@ -102,11 +105,13 @@ def send_to_slack(topics):
                     "type": "divider"
                 },
                 {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": topics_text
-                    }
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": sections
+                        }
+                    ]
                 }
             ]
         }
