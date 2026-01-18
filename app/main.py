@@ -71,54 +71,49 @@ def send_to_slack(topics: list):
             if trend['news'] and len(trend['news']) > 0:
                 sections += f"# {index} {trend['title']} ({trend['traffic']})\n"
                 for n_idx, news in enumerate(trend['news'], 1):
-                    sections += f"- {news['n_title']} {news['n_url']}\n\n"
+                    sections += f"- {news['n_title']}\n\n"
             else:
                 sections += f"# {index} {trend['title']} ({trend['traffic']}) - N/A\n\n"
     else:
-        sections += "目前沒有找到熱門關鍵字\n"
+        sections += "Here no topics found.\n"
     
     # logger.info(f"Preparing to send {len(topics)} topics to Slack")
 
     # Format the message
-    if topics:
-        message = {
-            "blocks": [
-                {
-                    "type": "header",
-                    "text": {
+    message = {
+        "blocks": [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": "🔥 Taiwan Google Trends",
+                    "emoji": True
+                }
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
                         "type": "plain_text",
-                        "text": "🔥 台灣 Google Trends 熱門關鍵字",
+                        "text": f"📅 {current_time} (in 24 hours)",
                         "emoji": True
                     }
-                },
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "plain_text",
-                            "text": f"📅 {current_time} (近 24 小時)",
-                            "emoji": True
-                        }
-                    ]
-                },
-                {
-                    "type": "divider"
-                },
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": sections
-                        }
-                    ]
-                }
-            ]
-        }
-    else:
-        message = {
-            "text": f"📅 {current_time}\n目前沒有找到熱門關鍵字"
-        }
+                ]
+            },
+            {
+                "type": "divider"
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": sections
+                    }
+                ]
+            }
+        ]
+    }
     
     response = requests.post(
         webhook_url,
