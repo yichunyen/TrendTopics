@@ -4,8 +4,8 @@ steps:
     dir: 'terraform'
     args:
       - 'init'
-      - '-backend-config=bucket=${_TF_STATE_BUCKET}'
-      - '-backend-config=prefix=trend-topics'
+      - '-backend-config=bucket=${PROJECT_ID}-tfstate'
+      - '-backend-config=prefix=${_PREFIX}'
 
   # Terraform validate
   - name: 'hashicorp/terraform:1.11.2'
@@ -22,6 +22,7 @@ steps:
     dir: 'terraform'
     args: ['plan', '-var=project_id=${PROJECT_ID}', '-var=region=${_REGION}']
 
+# setup substitutions in trigger configuration
 substitutions:
-  _TF_STATE_BUCKET: ''  # Set via trigger configuration
-  _REGION: 'asia-east1'
+  _PREFIX: ''
+  _REGION: ''
