@@ -40,6 +40,13 @@ resource "google_cloud_run_v2_service" "trend_topics" {
     }
   }
 
+  # Ignore image changes as Cloud Build manages the container image
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+    ]
+  }
+
   depends_on = [
     google_project_service.required_apis,
     google_artifact_registry_repository.trend_topics,
