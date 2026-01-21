@@ -1,0 +1,34 @@
+steps:
+  # Terraform init with backend config from substitution
+  - name: 'hashicorp/terraform:1.11.2'
+    dir: 'terraform'
+    args:
+      - 'init'
+      - '-backend-config=bucket=${PROJECT_ID}-tfstate'
+      - '-backend-config=prefix=${_PREFIX}'
+
+  # Terraform validate
+  - name: 'hashicorp/terraform:1.11.2'
+    dir: 'terraform'
+    args: ['validate']
+
+  # Terraform fmt check
+  - name: 'hashicorp/terraform:1.11.2'
+    dir: 'terraform'
+    args: ['fmt', '-check', '-recursive']
+
+  # Terraform plan (optional check)
+  - name: 'hashicorp/terraform:1.11.2'
+    dir: 'terraform'
+    args: ['plan', '-var=project_id=${PROJECT_ID}', '-var=region=${LOCATION}']
+
+# setup substitutions in trigger configuration
+substitutions:
+  _PREFIX: ''
+
+# Required when using a custom service account
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+# Use trend-topics-runner service account (has Terraform permissions)
+serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/trend-topics-runner@${PROJECT_ID}.iam.gserviceaccount.com'

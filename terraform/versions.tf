@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.11.2"
 
   required_providers {
     google = {
@@ -8,10 +8,11 @@ terraform {
     }
   }
 
-  # Configure your GCS bucket for remote state
-  # Uncomment and replace with your bucket name
-  # backend "gcs" {
-  #   bucket = "your-terraform-state-bucket"
-  #   prefix = "trend-topics"
-  # }
+  # GCS backend for remote state
+  # Bucket name is provided via -backend-config at init time
+  # This keeps the bucket name private (not in version control)
+  backend "gcs" {
+    # bucket is set via: terraform init -backend-config="bucket=YOUR_BUCKET"
+    prefix = "trend-topics"
+  }
 }
