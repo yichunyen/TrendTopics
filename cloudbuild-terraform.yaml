@@ -26,3 +26,7 @@ steps:
 substitutions:
   _PREFIX: ''
   _REGION: ''
+
+# Required when using a custom service account
+options:
+  logging: CLOUD_LOGGING_ONLY
