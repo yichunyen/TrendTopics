@@ -23,6 +23,10 @@ override.tf.json
 *.tfvars.json
 !terraform.tfvars.example
 
+# Backend config files (contain bucket names)
+backend.hcl
+!backend.hcl.example
+
 # Python
 __pycache__/
 *.py[cod]

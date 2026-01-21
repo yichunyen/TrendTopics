@@ -1,0 +1,27 @@
+steps:
+  # Terraform init with backend config from substitution
+  - name: 'hashicorp/terraform:latest'
+    dir: 'terraform'
+    args:
+      - 'init'
+      - '-backend-config=bucket=${_TF_STATE_BUCKET}'
+      - '-backend-config=prefix=trend-topics'
+
+  # Terraform validate
+  - name: 'hashicorp/terraform:latest'
+    dir: 'terraform'
+    args: ['validate']
+
+  # Terraform fmt check
+  - name: 'hashicorp/terraform:latest'
+    dir: 'terraform'
+    args: ['fmt', '-check', '-recursive']
+
+  # Terraform plan (optional check)
+  - name: 'hashicorp/terraform:latest'
+    dir: 'terraform'
+    args: ['plan', '-var=project_id=${PROJECT_ID}', '-var=region=${_REGION}']
+
+substitutions:
+  _TF_STATE_BUCKET: ''  # Set via trigger configuration
+  _REGION: 'asia-east1'
