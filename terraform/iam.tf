@@ -12,6 +12,7 @@ locals {
     "roles/serviceusage.serviceUsageAdmin", # Enable/disable APIs
     "roles/artifactregistry.admin",         # Manage Artifact Registry
     "roles/storage.admin",                  # Access tfstate bucket
+    "roles/logging.logWriter",              # Write Cloud Run logs
   ]
 }
 
