@@ -20,13 +20,15 @@ steps:
   # Terraform plan (optional check)
   - name: 'hashicorp/terraform:1.11.2'
     dir: 'terraform'
-    args: ['plan', '-var=project_id=${PROJECT_ID}', '-var=region=${_REGION}']
+    args: ['plan', '-var=project_id=${PROJECT_ID}', '-var=region=${LOCATION}']
 
 # setup substitutions in trigger configuration
 substitutions:
   _PREFIX: ''
-  _REGION: ''
 
 # Required when using a custom service account
 options:
   logging: CLOUD_LOGGING_ONLY
+
+# Use trend-topics-runner service account (has Terraform permissions)
+serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/trend-topics-runner@${PROJECT_ID}.iam.gserviceaccount.com'
