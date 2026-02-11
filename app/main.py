@@ -4,15 +4,18 @@ Fetches trending topics from Google Trends and sends to Slack
 """
 
 import os
+import json
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from flask import Flask, jsonify
 import requests
+from google.cloud import storage
 
 # Import the shared parser function
 from parseGoogleTrend import parse_google_trends
+from twNationalCalendar import get_national_calendar_events
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -153,6 +156,79 @@ def fetch_trends_endpoint():
             "message": str(e)
         }), 500
 
+def upload_to_gcs(bucket_name, data, year):
+    """
+    Upload JSON data to Google Cloud Storage.
+    
+    Args:
+        bucket_name: The name of the GCS bucket
+        data: The data to upload (will be converted to JSON)
+        year: The year to use in the filename
+        
+    Returns:
+        str: The public URL of the uploaded file
+    """
+    
+    try:
+        # Initialize GCS client
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        
+        # Create blob with filename format: YYYY.json
+        blob_name = f"{year}.json"
+        blob = bucket.blob(blob_name)
+        
+        # Upload JSON data
+        json_data = json.dumps(data, ensure_ascii=False, indent=2)
+        blob.upload_from_string(
+            json_data,
+            content_type='application/json'
+        )
+        
+        logger.info(f"Successfully uploaded {blob_name} to bucket {bucket_name}")
+        
+        # Return the public URL (or gs:// URL)
+        return f"gs://{bucket_name}/{blob_name}"
+        
+    except Exception as e:
+        logger.error(f"Failed to upload to GCS: {e}")
+        raise Exception(f"GCS upload failed: {e}")
+
+
+@app.route('/national-calendar', methods=['GET'])
+def national_calendar():
+    """Endpoint to get Taiwan national calendar events for the current year and upload to GCS."""
+    try:
+        current_year = datetime.now().year
+        events = get_national_calendar_events(current_year)
+        
+        # Prepare data to upload
+        calendar_data = {
+            "year": current_year,
+            "events_count": len(events),
+            "events": events,
+            "updated_at": datetime.now(ZoneInfo('Asia/Taipei')).isoformat()
+        }
+        
+        # Upload to GCS
+        gcp_project_id = os.environ.get('GCP_PROJECT')
+        gcs_url = upload_to_gcs(f"{gcp_project_id}-tw-calendar-bucket", calendar_data, current_year)
+        
+        return jsonify({
+            "status": "success",
+            "year": current_year,
+            "events_count": len(events),
+            "gcs_url": gcs_url,
+            "events": events
+        }), 200
+    except Exception as e:
+        logger.error(f"Error in national_calendar endpoint: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -165,7 +241,7 @@ def root():
     """Root endpoint."""
     return jsonify({
         "service": "Google Trends Taiwan Fetcher",
-        "endpoints": ["/fetch-trends", "/health"]
+        "endpoints": ["/fetch-trends", "/health", "/national-calendar"]
     }), 200
 
 
