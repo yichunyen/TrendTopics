@@ -1,5 +1,5 @@
 resource "google_storage_bucket" "tw_calendar_bucket" {
-  name     = "${var.project_id}-tw-calendar-bucket"
+  name     = "${var.project_id}-calendar-bucket"
   location = var.region
   project  = var.project_id
 

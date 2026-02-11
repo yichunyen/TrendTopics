@@ -211,8 +211,8 @@ def national_calendar():
         }
         
         # Upload to GCS
-        gcp_project_id = os.environ.get('GCP_PROJECT')
-        gcs_url = upload_to_gcs(f"{gcp_project_id}-tw-calendar-bucket", calendar_data, current_year)
+        gcp_project_id = os.environ.get('GCP_PROJECT_ID')
+        gcs_url = upload_to_gcs(f"{gcp_project_id}-calendar-bucket", calendar_data, current_year)
         
         return jsonify({
             "status": "success",
