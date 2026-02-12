@@ -8,6 +8,10 @@ import logging
 import csv
 import io
 import requests
+import urllib3
+
+# Suppress SSL warnings for local development
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +38,7 @@ def get_national_calendar_events(year):
     
     try:
         logger.info(f"Fetching national calendar data for year {year}")
-        response = requests.get(csv_url, headers=headers, timeout=30)
+        response = requests.get(csv_url, headers=headers, timeout=30, verify=False)
         response.raise_for_status()
         
         # Parse CSV content
