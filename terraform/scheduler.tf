@@ -43,3 +43,27 @@ resource "google_cloud_scheduler_job" "afternoon_trends" {
 
   depends_on = [google_project_service.required_apis]
 }
+
+
+resource "google_cloud_scheduler_job" "national_calendar" {
+  name        = "tw-national-calendar-job"
+  description = "Fetch Taiwan National Calendar Yearly at 00:00 on Jan 1"
+  schedule    = "0 0 1 1 *"
+  time_zone   = "Asia/Taipei"
+  region      = var.region
+
+  http_target {
+    http_method = "GET"
+    uri         = "${google_cloud_run_v2_service.trend_topics.uri}/national-calendar"
+
+    oidc_token {
+      service_account_email = google_service_account.scheduler.email
+    }
+  }
+
+  retry_config {
+    retry_count = 1
+  }
+
+  depends_on = [google_project_service.required_apis]
+}

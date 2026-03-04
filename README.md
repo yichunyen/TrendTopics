@@ -8,22 +8,6 @@ Fetch Taiwan Google Trends daily trending keywords and send to Slack.
 - Automatically triggered at 9:00 AM (Asia/Taipei) daily via Cloud Scheduler
 - Sends results to a specified Slack channel via Webhook
 
-## File Structure
-
-```
-TrendTopics/
-├── app/
-│   ├── main.py           # Flask application
-│   ├── requirements.txt  # Python dependencies
-│   └── Dockerfile        # Docker image
-├── terraform/
-│   ├── main.tf           # GCP resource definitions
-│   ├── variables.tf      # Variable definitions
-│   ├── outputs.tf        # Output values
-│   └── terraform.tfvars.example
-├── cloudbuild.yaml       # Cloud Build configuration
-└── .gitignore
-```
 
 ## Terraform Deployment
 
@@ -48,7 +32,6 @@ gcloud builds submit --config=cloudbuild.yaml
 
 # 6. Add Slack Webhook Secret manually
 # GCP Console → Secret Manager → slack-webhook-url → Add new version
-```
 
 ## License
 
